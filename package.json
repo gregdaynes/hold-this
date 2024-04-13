@@ -1,5 +1,5 @@
 {
-  "name": "sqlite-key-value",
+  "name": "hold-this",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -10,7 +10,7 @@
     "start": "node index.js",
     "test": "node --test"
   },
-  "keywords": [],
+  "keywords": ["key-value", "datastore", "sqlite"],
   "author": "Gregory Daynes <email@gregdaynes.com>",
   "license": "ISC",
   "devDependencies": {
