@@ -3,7 +3,7 @@ import connect, { sql } from '@databases/sqlite-sync'
 /**
  * @class KVStore
  * A simple key-value store that uses SQLite as the backend.
- * @param {string} [pathToFile=':memory:'] The path to the SQLite file.
+ * @param {string} [location=':memory:'] The path to the SQLite file.
  *
  * @example
  * const store = new KVStore()
@@ -16,8 +16,7 @@ import connect, { sql } from '@databases/sqlite-sync'
  * store.get('topic', 'account-123:*')
  * => [['account-123:user-456', 'value']]
  */
-
-class KVStore {
+export class KVStore {
   /**
    * The topics that have been initialized.
    * @type {Object.<string, boolean>}
@@ -32,10 +31,11 @@ class KVStore {
 
   /**
    * Create a new key-value store.
+   * @param {string} location The location of the SQLite file.
    * @returns {void}
    */
-  constructor (pathToFile = ':memory:') {
-    this.#connection = connect(pathToFile)
+  constructor (location) {
+    this.#connection = connect(location)
     this.#topics = {}
   }
 
@@ -149,4 +149,12 @@ class KVStore {
   }
 }
 
-export default new KVStore()
+/**
+ * Create a new key-value store.
+ * @param {Object} options The options for the key-value store.
+ * @param {string} [options.location=':memory:'] The location of the SQLite file.
+ * @returns {KVStore} The key-value store.
+ */
+export default function factory ({ location = ':memory:' } = {}) {
+  return new KVStore(location)
+}
