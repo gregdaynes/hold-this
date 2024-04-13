@@ -1,53 +1,58 @@
-SQLite KV Store
-===============
+Hold This
+=========
 
-This is a simple key-value store that uses SQLite as the backend.
+A simple key-value store that uses SQLite as the backend.
 It is designed to be used in a single-threaded synchronous environment.
 
 ```js
+// install
+npm install --save hold-this
+```
+
+```js
 // In Memory Store
-import KVStore from './index.js'
+import hold from 'hold-this'
 
-const kvstore = KVStore()
-kvstore.set('accounts', 'account-123:user-123:name', 'Alice')
-kvstore.set('accounts', 'account-123:user-456:name', 'Bob')
+const holder = hold()
+holder.set('accounts', 'account-123:user-123:name', 'Alice')
+holder.set('accounts', 'account-123:user-456:name', 'Bob')
 
-console.log(kvstore.get('accounts', 'account-123:*:name'))
+console.log(holder.get('accounts', 'account-123:*:name'))
 // => [['account-123:user-123:name', 'Alice'], ['account-123:user-456:name', 'Bob']]
 ```
 
 ```js
 // File based store
-import KVStore from './index.js'
+import hold from 'hold-this'
 
-const kvstore = KVStore({ location: './kvstore.sqlite' })
-kvstore.set('accounts', 'account-123:user-123:name', 'Alice')
-kvstore.set('accounts', 'account-123:user-456:name', 'Bob')
+const holder = holder({ location: './holder.sqlite' })
+holder.set('accounts', 'account-123:user-123:name', 'Alice')
+holder.set('accounts', 'account-123:user-456:name', 'Bob')
 
-console.log(kvstore.get('accounts', 'account-123:*:name'))
+console.log(holder.get('accounts', 'account-123:*:name'))
 // => [['account-123:user-123:name', 'Alice'], ['account-123:user-456:name', 'Bob']]
 ```
 
 ```js
 // Binding topic to get/set
-import KVStore from './index.js'
+import hold from 'hold-this'
 
-const kvstore = KVStore().bind('accounts')
-kvstore.set('account-123:user-123:name', 'Alice')
-kvstore.get('account-123:user-456:name', 'Bob')
+const holder = holder().bind('accounts')
+holder.set('account-123:user-123:name', 'Alice')
+holder.get('account-123:user-456:name', 'Bob')
 
-console.log(kvstore.get('account-123:*:name'))
+console.log(holder.get('account-123:*:name'))
 // => [['account-123:user-123:name', 'Alice'], ['account-123:user-456:name', 'Bob']]
 ```
 
 ```js
 // Serialization
-import KVStore from './index.js'
+import hold from 'hold-this'
 
-const kvstore = KVStore().bind('accounts')
-kvstore.set('account-123:user-123:name', { firstName: 'Alice' }, { isJSON: true })
-kvstore.get('account-123:user-456:name', 'Bob')
+const holder = holder().bind('accounts')
+holder.set('account-123:user-123:name', { firstName: 'Alice' }, { isJSON: true })
+holder.get('account-123:user-456:name', 'Bob')
 
-console.log(kvstore.get('account-123:*:name'))
+console.log(holder.get('account-123:*:name'))
 // => [['account-123:user-123:name', { firstName: 'Alice' }], ['account-123:user-456:name', 'Bob']]
 ```

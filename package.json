@@ -1,7 +1,7 @@
 {
   "name": "hold-this",
-  "version": "1.0.0",
-  "description": "",
+  "version": "1.0.1",
+  "description": "A simple key-value datastore that holds your data until you need it.",
   "main": "index.js",
   "type": "module",
   "scripts": {
