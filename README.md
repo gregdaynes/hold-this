@@ -28,3 +28,14 @@ console.log(kvstore.get('accounts', 'account-123:*:name'))
 // => [['account-123:user-123:name', 'Alice'], ['account-123:user-456:name', 'Bob']]
 ```
 
+```js
+// Binding topic to get/set
+import KVStore from './index.js'
+
+const kvstore = KVStore().bind('accounts')
+kvstore.set('account-123:user-123:name', 'Alice')
+kvstore.get('account-123:user-456:name', 'Bob')
+
+console.log(kvstore.get('account-123:*:name'))
+// => [['account-123:user-123:name', 'Alice'], ['account-123:user-456:name', 'Bob']]
+```

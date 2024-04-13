@@ -133,6 +133,18 @@ export class KVStore {
     return results
   }
 
+  /**
+   * Bind a topic to the key-value store.
+   * @param {string} topic The topic to bind.
+   * @returns {Object} The bound methods.
+   */
+  bind (topic) {
+    return {
+      set: this.set.bind(this, topic),
+      get: this.get.bind(this, topic)
+    }
+  }
+
   #splitKey (key) {
     return key.split(':')
   }

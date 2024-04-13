@@ -72,4 +72,28 @@ test('lib', async (t) => {
       assert.equal(results[1][0], 'key:def:separators')
     })
   })
+
+  await t.test('binding predefined topics', async (t) => {
+    const store = KVStore().bind('bound')
+    store.set('key', 'value')
+    const results = store.get('key')
+
+    assert.equal(results[0][0], 'key')
+    assert.equal(results[0][1], 'value')
+  })
+
+  await t.test('binding topic does not affect other topics', async (t) => {
+    const store = KVStore()
+    const bound = store.bind('bound')
+
+    store.set('not_bound', 'key', 'value')
+    bound.set('boundKey', 'boundValue')
+    const results = store.get('not_bound', 'key')
+    const boundResults = bound.get('boundKey')
+
+    assert.equal(results[0][0], 'key')
+    assert.equal(results[0][1], 'value')
+    assert.equal(boundResults[0][0], 'boundKey')
+    assert.equal(boundResults[0][1], 'boundValue')
+  })
 })
