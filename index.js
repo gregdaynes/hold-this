@@ -1,4 +1,5 @@
 import connect, { sql } from '@databases/sqlite-sync'
+import serialize from 'serialize-javascript'
 
 /**
  * @class KVStore
@@ -53,6 +54,7 @@ export class KVStore {
       CREATE TABLE IF NOT EXISTS ${sql.ident(topic)} (
         ${sql.join(columns, ', ')},
         value TEXT NOT NULL,
+        serialized BOOLEAN DEFAULT FALSE,
         UNIQUE (${sql.join(unique, ', ')})
       );
     `
@@ -69,9 +71,10 @@ export class KVStore {
    * @param {string} topic The topic to set the value in.
    * @param {string} key The key to set the value for.
    * @param {string} value The value to set.
+   * @param {Object} [options] The options for operation.
    * @returns {boolean|string} True if the value was set, an error otherwise.
    */
-  set (topic = 'topic', key, value) {
+  set (topic = 'topic', key, rawValue, options) {
     if (!this.#topics[topic]) this.init(topic, key)
 
     const columns = this.#parseKey(key, ([i]) => sql`${sql.ident(`col${i}`)}`)
@@ -81,10 +84,16 @@ export class KVStore {
     const conditions = this.#parseKey(key,
       ([i, column]) => sql`${sql.ident(`col${i}`)} = ${column}`)
 
+    let value = rawValue; let serialized = 'false'
+    if (typeof rawValue !== 'string') {
+      value = serialize(value, { isJSON: options?.isJSON })
+      serialized = 'true'
+    }
+
     const query = sql`
-      INSERT INTO ${sql.ident(topic)} (${sql.join(columns, ',')}, value)
-      VALUES (${sql.join(values, ', ')}, ${value})
-      ON CONFLICT DO UPDATE SET ${sql.ident('value')} = ${value} WHERE (${sql.join(conditions, ') AND (')});
+      INSERT INTO ${sql.ident(topic)} (${sql.join(columns, ',')}, value, serialized)
+      VALUES (${sql.join(values, ', ')}, ${value}, ${sql.__dangerous__rawValue(serialized)})
+      ON CONFLICT DO UPDATE SET ${sql.ident('value')} = ${value}, ${sql.ident('serialized')} = ${serialized} WHERE (${sql.join(conditions, ') AND (')});
     `
 
     try {
@@ -126,8 +135,11 @@ export class KVStore {
 
     const results = []
     for (const result of this.#connection.query(query)) {
-      const { value, ...columns } = result
-      results.push([Object.values(columns).join(':'), result.value])
+      const { value, serialized, ...columns } = result
+      // eslint-disable-next-line no-eval
+      const deserialized = serialized ? eval(`(${value})`) : value
+
+      results.push([Object.values(columns).join(':'), deserialized])
     }
 
     return results

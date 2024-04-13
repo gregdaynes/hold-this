@@ -39,3 +39,15 @@ kvstore.get('account-123:user-456:name', 'Bob')
 console.log(kvstore.get('account-123:*:name'))
 // => [['account-123:user-123:name', 'Alice'], ['account-123:user-456:name', 'Bob']]
 ```
+
+```js
+// Serialization
+import KVStore from './index.js'
+
+const kvstore = KVStore().bind('accounts')
+kvstore.set('account-123:user-123:name', { firstName: 'Alice' }, { isJSON: true })
+kvstore.get('account-123:user-456:name', 'Bob')
+
+console.log(kvstore.get('account-123:*:name'))
+// => [['account-123:user-123:name', { firstName: 'Alice' }], ['account-123:user-456:name', 'Bob']]
+```

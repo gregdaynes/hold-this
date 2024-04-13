@@ -17,6 +17,7 @@
     "standard": "^17.1.0"
   },
   "dependencies": {
-    "@databases/sqlite-sync": "^1.1.0"
+    "@databases/sqlite-sync": "^1.1.0",
+    "serialize-javascript": "^6.0.2"
   }
 }
