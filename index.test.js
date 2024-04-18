@@ -294,7 +294,7 @@ test('Hold This', async (t) => {
       })
       holder.set('other', 'key', 'value', { ttl: 0 })
       holder.set('ttl', 'key', 'value', { ttl: 0 })
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await new Promise(resolve => setTimeout(resolve, 5))
 
       holder.clean('ttl')
 
