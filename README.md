@@ -56,3 +56,25 @@ holder.get('account-123:user-456:name', 'Bob')
 console.log(holder.get('account-123:*:name'))
 // => [['account-123:user-123:name', { firstName: 'Alice' }], ['account-123:user-456:name', 'Bob']]
 ```
+
+```js
+// TTL Records
+import hold from 'hold-this'
+
+const holder = hold()
+holder.set('accounts', 'account-123:user-123:name', 'Alice', { ttl: 1000 })
+holder.set('accounts', 'account-123:user-456:name', 'Bob', { ttl: 0 })
+
+console.log(holder.get('accounts', 'account-123:*:name'))
+// => [['account-123:user-123:name', 'Alice']]
+```
+
+```js
+// Clean TTL Records
+import hold from 'hold-this'
+
+const holder = hold()
+holder.set('accounts', 'account-123:user-123:name', 'Alice', { ttl:  })
+
+holder.clean()
+````

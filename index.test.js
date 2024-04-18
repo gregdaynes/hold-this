@@ -235,4 +235,76 @@ test('Hold This', async (t) => {
       assert.equal(result[1].toString(), 'https://example.com/')
     })
   })
+
+  await t.test('ttl records', async (t) => {
+    await t.test('returns the value of a non-expired record', async (t) => {
+      const holder = Hold()
+      holder.set('ttl', 'key', 'value', { ttl: 100 })
+
+      const [result] = holder.get('ttl', 'key')
+      assert.equal(result[0], 'key')
+      assert.equal(result[1], 'value')
+    })
+
+    await t.test('does not return expired entries', async (t) => {
+      await t.test('short ttl', async (t) => {
+        const holder = Hold()
+        holder.set('ttl', 'key', 'value', { ttl: 5 })
+
+        // artificial delay
+        await new Promise(resolve => setTimeout(resolve, 5))
+
+        const [result] = holder.get('ttl', 'key')
+        assert.equal(result, undefined)
+      })
+
+      await t.test('zero ttl', async (t) => {
+        const holder = Hold()
+        holder.set('ttl', 'other', 'value', { ttl: 0 })
+
+        const [result] = holder.get('ttl', 'other')
+        assert.equal(result, undefined)
+      })
+    })
+
+    await t.test('clean expired ttl records', async (t) => {
+      const holder = Hold({
+        tasks: true,
+        exposeConnection: true
+      })
+      holder.set('other', 'key', 'value', { ttl: 0 })
+      holder.set('ttl', 'key', 'value', { ttl: 0 })
+      await new Promise(resolve => setTimeout(resolve, 0))
+
+      holder.clean()
+      const afterCleanTTL = holder.connection.query(holder.sql`SELECT * FROM ttl`)
+      const afterCleanOther = holder.connection.query(holder.sql`SELECT * FROM other`)
+
+      const [result] = holder.get('ttl', 'key')
+
+      assert.equal(result, undefined)
+      assert.equal(afterCleanTTL.length, 0)
+      assert.equal(afterCleanOther.length, 0)
+    })
+
+    await t.test('clean expired ttl records for a topic', async (t) => {
+      const holder = Hold({
+        tasks: true,
+        exposeConnection: true
+      })
+      holder.set('other', 'key', 'value', { ttl: 0 })
+      holder.set('ttl', 'key', 'value', { ttl: 0 })
+      await new Promise(resolve => setTimeout(resolve, 0))
+
+      holder.clean('ttl')
+
+      const afterClean = holder.connection.query(holder.sql`SELECT * FROM ttl`)
+      const afterCleanOther = holder.connection.query(holder.sql`SELECT * FROM other`)
+
+      const [result] = holder.get('ttl', 'key')
+      assert.equal(result, undefined)
+      assert.equal(afterClean.length, 0)
+      assert.equal(afterCleanOther.length, 1)
+    })
+  })
 })

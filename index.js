@@ -33,11 +33,19 @@ export class KVStore {
   /**
    * Create a new key-value store.
    * @param {string} location The location of the SQLite file.
+   * @param {Object} options The options for the key-value store.
+   * @param {boolean} [options.tasks=false] Enable background tasks like cleanup.
+   * @param {boolean} [options.exposeConnection=false] Expose the connection to the SQLite store.
    * @returns {void}
    */
-  constructor (location) {
+  constructor (location, { tasks = false, exposeConnection = false } = {}) {
     this.#connection = connect(location)
     this.#topics = {}
+
+    if (exposeConnection) {
+      this.connection = this.#connection
+      this.sql = sql
+    }
   }
 
   /**
@@ -49,17 +57,23 @@ export class KVStore {
   init (topic = 'topic', key = 'key') {
     const columns = this.#parseKey(key, ([i]) => sql`${sql.ident(`col${i}`)} TEXT NOT NULL`)
     const unique = this.#parseKey(key, ([i]) => sql`${sql.__dangerous__rawValue(`col${i}`)}`)
+    columns.push(sql`serialized BOOLEAN DEFAULT FALSE`)
+    columns.push(sql`value TEXT NOT NULL`)
+    columns.push(sql`ttl DATETIME DEFAULT NULL`)
 
-    const query = sql`
-      CREATE TABLE IF NOT EXISTS ${sql.ident(topic)} (
-        ${sql.join(columns, ', ')},
-        value TEXT NOT NULL,
-        serialized BOOLEAN DEFAULT FALSE,
-        UNIQUE (${sql.join(unique, ', ')})
-      );
-    `
+    this.#connection.tx((transaction) => {
+      transaction.query(sql`
+        CREATE TABLE IF NOT EXISTS ${sql.ident(topic)} (
+          ${sql.join(columns, ', ')},
+          UNIQUE (${sql.join(unique, ', ')})
+        );
+      `)
 
-    this.#connection.query(query)
+      transaction.query(sql`
+        CREATE INDEX idx_${sql.__dangerous__rawValue(topic)}_ttl
+        ON ${sql.__dangerous__rawValue(topic)} (ttl);
+      `)
+    })
 
     this.#topics[topic] = true
 
@@ -72,6 +86,7 @@ export class KVStore {
    * @param {string} key The key to set the value for.
    * @param {string} value The value to set.
    * @param {Object} [options] The options for operation.
+   * @param {number} [options.ttl] The time-to-live for the value in milliseconds.
    * @returns {boolean|string} True if the value was set, an error otherwise.
    */
   set (topic = 'topic', key, rawValue, options) {
@@ -88,6 +103,12 @@ export class KVStore {
     if (typeof rawValue !== 'string') {
       value = serialize(value, { isJSON: options?.isJSON })
       serialized = 'true'
+    }
+
+    if (options?.ttl >= 0) {
+      const ttl = new Date(Date.now() + options.ttl).toISOString()
+      columns.push(sql`ttl`)
+      values.push(sql`${ttl}`)
     }
 
     const query = sql`
@@ -119,23 +140,19 @@ export class KVStore {
       return sql`${sql.ident(`col${i}`)} = ${column}`
     })
 
-    let query
-    if (key === '*') {
-      query = sql`
-        SELECT *
-        FROM ${sql.ident(topic)}
-      `
-    } else {
-      query = sql`
-        SELECT *
-        FROM ${sql.ident(topic)}
-        WHERE (${sql.join(conditions, ') AND (')})
-      `
+    let query = sql`
+      SELECT *
+      FROM ${sql.ident(topic)}
+      WHERE (ttl IS NULL OR ttl > ${new Date().toISOString()})
+    `
+
+    if (key !== '*') {
+      query = sql.join([query, sql`AND (${sql.join(conditions, ') AND (')})`])
     }
 
     const results = []
     for (const result of this.#connection.query(query)) {
-      const { value, serialized, ...columns } = result
+      const { value, serialized, ttl, ...columns } = result
       // eslint-disable-next-line no-eval
       const deserialized = serialized ? eval(`(${value})`) : value
 
@@ -155,6 +172,26 @@ export class KVStore {
       set: this.set.bind(this, topic),
       get: this.get.bind(this, topic)
     }
+  }
+
+  clean (topic = null) {
+    if (this.#topics.length === 0) return
+
+    this.#connection.tx((transaction) => {
+      if (topic) {
+        transaction.query(sql`
+          DELETE FROM ${sql.ident(topic)}
+          WHERE ttl < ${new Date().toISOString()}
+        `)
+      } else {
+        for (const topic of Object.keys(this.#topics)) {
+          transaction.query(sql`
+          DELETE FROM ${sql.ident(topic)}
+          WHERE ttl < ${new Date().toISOString()}
+        `)
+        }
+      }
+    })
   }
 
   #splitKey (key) {
@@ -177,8 +214,10 @@ export class KVStore {
  * Create a new key-value store.
  * @param {Object} options The options for the key-value store.
  * @param {string} [options.location=':memory:'] The location of the SQLite file.
+ * @param {boolean} [options.exposeConnection=false] Expose the connection to the SQLite store.
  * @returns {KVStore} The key-value store.
  */
-export default function factory ({ location = ':memory:' } = {}) {
-  return new KVStore(location)
+export default function factory ({ location = ':memory:', exposeConnection = false } = {}
+) {
+  return new KVStore(location, { exposeConnection })
 }
