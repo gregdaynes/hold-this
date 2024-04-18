@@ -42,6 +42,28 @@ console.log(holder.get('accounts', 'account-123:*:name'))
 // => [['account-123:user-123:name', 'Alice'], ['account-123:user-456:name', 'Bob']]
 ```
 
+File based store defaults to using WAL for performance purposes. This can be disabled by setting `{ enableWAL: false}` when creating the instance.
+
+> [!CAUTION]
+> This will severely decrease write performance for File based storage.
+
+```js
+import hold from 'hold-this'
+
+const holder = holder({ location: './holder.sqlite', enableWAL: false })
+```
+
+> [!TIP]
+> You can benchmark by running `npm run test:bench`
+> ┌───────────┬──────────┬────────────────────┬──────────┬─────────┐
+> │ Task Name │ ops/sec  │ Average Time (ns)  │ Margin   │ Samples │
+> ├───────────┼──────────┼────────────────────┼──────────┼─────────┤
+> │ 'memory'  │ '64,429' │ 15520.905412115228 │ '±0.68%' │ 32224   │
+> │ 'disk'    │ '3,999'  │ 250002.6559999995  │ '±0.73%' │ 2000    │
+> │ 'diskWAL' │ '40,473' │ 24707.3802935224   │ '±0.77%' │ 20237   │
+> └───────────┴──────────┴────────────────────┴──────────┴─────────┘
+> _Performed on Macbook Pro M1 with 16 GB Memory_
+
 ### Bind Topic / Shorthand
 
 Calling `.bind('myTopic')` on your hold-this instance, will return a modified instance that has topic already defined on set/get methods.

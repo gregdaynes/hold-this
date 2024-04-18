@@ -34,13 +34,24 @@ export class KVStore {
    * Create a new key-value store.
    * @param {string} location The location of the SQLite file.
    * @param {Object} options The options for the key-value store.
-   * @param {boolean} [options.tasks=false] Enable background tasks like cleanup.
+   * @param {boolean} [options.enableWAL=true] Enable the Write-Ahead Logging for the SQLite store.
    * @param {boolean} [options.exposeConnection=false] Expose the connection to the SQLite store.
    * @returns {void}
    */
-  constructor (location, { tasks = false, exposeConnection = false } = {}) {
+  constructor (location, { enableWAL = true, exposeConnection = false } = {}) {
     this.#connection = connect(location)
     this.#topics = {}
+
+    if (enableWAL && location !== ':memory:') {
+      this.#connection.query(sql`PRAGMA journal_mode = WAL`)
+      this.#connection.query(sql`PRAGMA synchronous = OFF`)
+
+      // Recommended optimizations, but not found to be beneficial in benchmarking
+      // this.#connection.query(sql`PRAGMA temp_store = memory`)
+      // this.#connection.query(sql`PRAGMA mmap_size = 30000000000`)
+      // this.#connection.query(sql`pragma page_size = 32768`)
+      // this.#connection.query(sql`PRAGMA cache_size=1000`)
+    }
 
     if (exposeConnection) {
       this.connection = this.#connection
@@ -215,9 +226,10 @@ export class KVStore {
  * @param {Object} options The options for the key-value store.
  * @param {string} [options.location=':memory:'] The location of the SQLite file.
  * @param {boolean} [options.exposeConnection=false] Expose the connection to the SQLite store.
+ * @param {boolean} [options.enableWAL=true] Enable the Write-Ahead Logging for the SQLite store.
  * @returns {KVStore} The key-value store.
  */
-export default function factory ({ location = ':memory:', exposeConnection = false } = {}
+export default function factory ({ location = ':memory:', exposeConnection = false, enableWAL = true } = {}
 ) {
-  return new KVStore(location, { exposeConnection })
+  return new KVStore(location, { exposeConnection, enableWAL })
 }

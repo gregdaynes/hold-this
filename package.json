@@ -9,6 +9,7 @@
     "lint:fix": "standard --fix",
     "start": "node index.js",
     "test": "node --test",
+    "test:bench": "node ./bench.js",
     "test:coverage": "node --test --experimental-test-coverage"
   },
   "keywords": [
@@ -23,7 +24,8 @@
     "eslint": "^8.57.0",
     "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-n": "^16.6.2",
-    "eslint-plugin-promise": "^6.1.1"
+    "eslint-plugin-promise": "^6.1.1",
+    "tinybench": "^2.7.0"
   },
   "dependencies": {
     "@databases/sqlite-sync": "^1.1.0",
