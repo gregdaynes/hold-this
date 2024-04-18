@@ -1,6 +1,6 @@
 {
   "name": "hold-this",
-  "version": "1.2.0",
+  "version": "1.2.2",
   "description": "A simple key-value datastore that holds your data until you need it.",
   "main": "index.js",
   "type": "module",
@@ -19,6 +19,10 @@
   ],
   "author": "Gregory Daynes <email@gregdaynes.com>",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gregdaynes/hold-this"
+  },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^1.7.2",
     "eslint": "^8.57.0",

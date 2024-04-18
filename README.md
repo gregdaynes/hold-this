@@ -55,14 +55,14 @@ const holder = holder({ location: './holder.sqlite', enableWAL: false })
 
 > [!TIP]
 > You can benchmark by running `npm run test:bench`
-> ┌───────────┬──────────┬────────────────────┬──────────┬─────────┐
-> │ Task Name │ ops/sec  │ Average Time (ns)  │ Margin   │ Samples │
-> ├───────────┼──────────┼────────────────────┼──────────┼─────────┤
-> │ 'memory'  │ '64,429' │ 15520.905412115228 │ '±0.68%' │ 32224   │
-> │ 'disk'    │ '3,999'  │ 250002.6559999995  │ '±0.73%' │ 2000    │
-> │ 'diskWAL' │ '40,473' │ 24707.3802935224   │ '±0.77%' │ 20237   │
-> └───────────┴──────────┴────────────────────┴──────────┴─────────┘
-> _Performed on Macbook Pro M1 with 16 GB Memory_
+
+| Task Name | ops/sec  | Average Time (ns)  | Margin   | Samples |
+|-----------|----------|--------------------|----------|---------|
+| 'memory'  | '64,429' | 15520.905412115228 | '±0.68%' | 32224   |
+| 'disk'    | '3,999'  | 250002.6559999995  | '±0.73%' | 2000    |
+| 'diskWAL' | '40,473' | 24707.3802935224   | '±0.77%' | 20237   |
+
+_Performed on Macbook Pro M1 with 16 GB Memory_
 
 ### Bind Topic / Shorthand
 
