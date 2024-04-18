@@ -66,17 +66,17 @@ export class KVStore {
    * @returns {KVStore} The KVStore instance.
    */
   init (topic = 'topic', key = 'key') {
-    const columns = this.#parseKey(key, ([i]) => sql`${sql.ident(`col${i}`)} TEXT NOT NULL`)
+    const query = this.#parseKey(key, ([i]) => sql`${sql.ident(`col${i}`)} TEXT NOT NULL`)
     const unique = this.#parseKey(key, ([i]) => sql`${sql.__dangerous__rawValue(`col${i}`)}`)
-    columns.push(sql`serialized BOOLEAN DEFAULT FALSE`)
-    columns.push(sql`value TEXT NOT NULL`)
-    columns.push(sql`ttl DATETIME DEFAULT NULL`)
+    query.push(sql`serialized BOOLEAN DEFAULT FALSE`)
+    query.push(sql`value TEXT NOT NULL`)
+    query.push(sql`ttl DATETIME DEFAULT NULL`)
+    query.push(sql`UNIQUE (${sql.join(unique, ', ')})`)
 
     this.#connection.tx((transaction) => {
       transaction.query(sql`
         CREATE TABLE IF NOT EXISTS ${sql.ident(topic)} (
-          ${sql.join(columns, ', ')},
-          UNIQUE (${sql.join(unique, ', ')})
+          ${sql.join(query, ', ')}
         );
       `)
 
