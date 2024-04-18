@@ -8,9 +8,14 @@
     "lint": "standard",
     "lint:fix": "standard --fix",
     "start": "node index.js",
-    "test": "node --test"
+    "test": "node --test",
+    "test:coverage": "node --test --experimental-test-coverage"
   },
-  "keywords": ["key-value", "datastore", "sqlite"],
+  "keywords": [
+    "key-value",
+    "datastore",
+    "sqlite"
+  ],
   "author": "Gregory Daynes <email@gregdaynes.com>",
   "license": "ISC",
   "devDependencies": {
