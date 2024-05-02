@@ -269,7 +269,6 @@ test('Hold This', async (t) => {
 
     await t.test('clean expired ttl records', async (t) => {
       const holder = Hold({
-        tasks: true,
         exposeConnection: true
       })
       holder.set('other', 'key', 'value', { ttl: 0 })
@@ -289,7 +288,6 @@ test('Hold This', async (t) => {
 
     await t.test('clean expired ttl records for a topic', async (t) => {
       const holder = Hold({
-        tasks: true,
         exposeConnection: true
       })
       holder.set('other', 'key', 'value', { ttl: 0 })
