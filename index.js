@@ -38,9 +38,10 @@ export class KVStore {
    * @param {boolean} [options.exposeConnection=false] Expose the connection to the SQLite store.
    * @returns {void}
    */
-  constructor (location, { enableWAL = true, exposeConnection = false } = {}) {
+  constructor (location, { enableWAL = true, exposeConnection = false, turbo = false } = {}) {
     this.#connection = connect(location)
     this.#topics = {}
+    this.turbo = turbo
 
     if (enableWAL && location !== ':memory:') {
       this.#connection.query(sql`PRAGMA journal_mode = WAL`)
@@ -67,11 +68,14 @@ export class KVStore {
    */
   init (topic = 'topic', key = 'key') {
     const query = this.#parseKey(key, ([i]) => sql`${sql.ident(`col${i}`)} TEXT NOT NULL`)
-    const unique = this.#parseKey(key, ([i]) => sql`${sql.__dangerous__rawValue(`col${i}`)}`)
     query.push(sql`serialized BOOLEAN DEFAULT FALSE`)
     query.push(sql`value TEXT NOT NULL`)
     query.push(sql`ttl DATETIME DEFAULT NULL`)
-    query.push(sql`UNIQUE (${sql.join(unique, ', ')})`)
+
+    if (!this.turbo) {
+      const unique = this.#parseKey(key, ([i]) => sql`${sql.__dangerous__rawValue(`col${i}`)}`)
+      query.push(sql`UNIQUE (${sql.join(unique, ', ')})`)
+    }
 
     this.#connection.tx((transaction) => {
       transaction.query(sql`
@@ -80,10 +84,12 @@ export class KVStore {
         );
       `)
 
-      transaction.query(sql`
-        CREATE INDEX idx_${sql.__dangerous__rawValue(topic)}_ttl
-        ON ${sql.__dangerous__rawValue(topic)} (ttl);
-      `)
+      if (!this.turbo) {
+        transaction.query(sql`
+          CREATE INDEX idx_${sql.__dangerous__rawValue(topic)}_ttl
+          ON ${sql.__dangerous__rawValue(topic)} (ttl);
+        `)
+      }
     })
 
     this.#topics[topic] = true
@@ -120,12 +126,14 @@ export class KVStore {
       values.push(sql`${ttl}`)
     }
 
-    const query = sql`
+    let query = sql`
       INSERT INTO ${sql.ident(topic)} (${sql.join(columns, ',')}, value, serialized)
       VALUES (${sql.join(values, ', ')}, ${value}, ${sql.__dangerous__rawValue(serialized)})
-      ON CONFLICT DO UPDATE SET ${sql.ident('value')} = ${value}, ${sql.ident('serialized')} = ${serialized} WHERE (${sql.join(conditions, ') AND (')});
     `
 
+    if (!this.turbo) {
+      query = sql.join([query, sql`ON CONFLICT DO UPDATE SET ${sql.ident('value')} = ${value}, ${sql.ident('serialized')} = ${serialized} WHERE (${sql.join(conditions, ') AND (')});`])
+    }
 
     return query
   }
@@ -243,9 +251,10 @@ export class KVStore {
  * @param {string} [options.location=':memory:'] The location of the SQLite file.
  * @param {boolean} [options.exposeConnection=false] Expose the connection to the SQLite store.
  * @param {boolean} [options.enableWAL=true] Enable the Write-Ahead Logging for the SQLite store.
+ * @param {boolean} [options.turbo=false] Enable the turbo mode for the SQLite store. Turbo mode does not have indexes, constraints, or conflict checks.
  * @returns {KVStore} The key-value store.
  */
-export default function factory ({ location = ':memory:', exposeConnection = false, enableWAL = true } = {}
+export default function factory ({ location = ':memory:', exposeConnection = false, enableWAL = true, turbo = false } = {}
 ) {
-  return new KVStore(location, { exposeConnection, enableWAL })
+  return new KVStore(location, { exposeConnection, enableWAL, turbo })
 }

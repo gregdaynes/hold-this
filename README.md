@@ -119,7 +119,29 @@ If a topic parameter is provided `.clean('myTopic')`, only this topic's expired 
 import hold from 'hold-this'
 
 const holder = hold()
-holder.set('accounts', 'account-123:user-123:name', 'Alice', { ttl:  })
+holder.set('accounts', 'account-123:user-123:name', 'Alice', { ttl: 1000 })
 
 holder.clean()
-````
+```
+
+### Turbo Mode
+
+If speed of insertion is a priority, turbo mode can be enabled.
+When turbo mode is used, the table is not indexed, and unique keys are disabled.
+
+> [!TIP]
+> It is recommended to run turbo mode on an instance of hold-this away from the rest of your data.
+
+> [!WARNING]
+> Turbo mode removes table constraints and indexes.
+> Fetching data with turbo mode enabled will be much slower.
+
+```js
+import hold from 'hold-this'
+
+const holder = hold({ turbo: true })
+holder.set('accounts', 'account-123:user-123:name', 'Alice')
+
+console.log(holder.get('accounts', 'account-123:*:name'))
+// => [['account-123:user-123:name', 'Alice']]
+```

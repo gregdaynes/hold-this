@@ -305,4 +305,25 @@ test('Hold This', async (t) => {
       assert.equal(afterCleanOther.length, 1)
     })
   })
+
+  await t.test('bulk insert', async (t) => {
+    const holder = Hold({ exposeConnection: true })
+    holder.init('bulk', 'key', 'value')
+
+    const entries = Array.from(Array(10)).map((_, i) => holder.prepare('bulk', `key${i}`, `value${i}`))
+    holder.setBulk('bulk', 'key', entries)
+
+    const results = holder.connection.query(holder.sql`SELECT * FROM bulk`)
+    assert.equal(results.length, 10)
+  })
+
+  await t.test('turbo mode does not interfere', async (t) => {
+    const holder = Hold()
+    holder.set('turbo', 'key', 'value')
+
+    const [result] = holder.get('turbo', 'key')
+
+    assert.equal(result[0], 'key')
+    assert.equal(result[1], 'value')
+  })
 })

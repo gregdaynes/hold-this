@@ -1,6 +1,7 @@
 import { unlinkSync } from 'node:fs'
 import { Bench } from 'tinybench'
 import Hold from './index.js'
+import benchTurbo from './bench-turbo.js'
 
 const warmupIterations = 1000
 const bench = new Bench()
@@ -112,6 +113,9 @@ bench
     }
   })
 
+console.info('Running Bechnmarks')
 await bench.run()
 
 console.table(bench.table())
+console.info('Running Max Thoroughput Benchmark')
+console.table(benchTurbo())
