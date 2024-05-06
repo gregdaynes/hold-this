@@ -92,17 +92,15 @@ export class KVStore {
   }
 
   /**
-   * Set a value in the key-value store.
+   * Prepare a query to set a value in the key-value store.
    * @param {string} topic The topic to set the value in.
    * @param {string} key The key to set the value for.
    * @param {string} value The value to set.
    * @param {Object} [options] The options for operation.
    * @param {number} [options.ttl] The time-to-live for the value in milliseconds.
-   * @returns {boolean|string} True if the value was set, an error otherwise.
+   * @returns {import('@databases/sqlite-sync').SQLQuery} The query to set the value.
    */
-  set (topic = 'topic', key, rawValue, options) {
-    if (!this.#topics[topic]) this.init(topic, key)
-
+  prepare (topic, key, rawValue, options) {
     const columns = this.#parseKey(key, ([i]) => sql`${sql.ident(`col${i}`)}`)
 
     const values = this.#parseKey(key, (key) => sql`${key[1]}`)
@@ -127,6 +125,24 @@ export class KVStore {
       VALUES (${sql.join(values, ', ')}, ${value}, ${sql.__dangerous__rawValue(serialized)})
       ON CONFLICT DO UPDATE SET ${sql.ident('value')} = ${value}, ${sql.ident('serialized')} = ${serialized} WHERE (${sql.join(conditions, ') AND (')});
     `
+
+
+    return query
+  }
+
+  /**
+   * Set a value in the key-value store.
+   * @param {string} topic The topic to set the value in.
+   * @param {string} key The key to set the value for.
+   * @param {string} value The value to set.
+   * @param {Object} [options] The options for operation.
+   * @param {number} [options.ttl] The time-to-live for the value in milliseconds.
+   * @returns {boolean|string} True if the value was set, an error otherwise.
+   */
+  set (topic = 'topic', key, rawValue, options) {
+    if (!this.#topics[topic]) this.init(topic, key)
+
+    const query = this.prepare(topic, key, rawValue, options)
 
     try {
       this.#connection.query(query)
