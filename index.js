@@ -161,6 +161,25 @@ export class KVStore {
   }
 
   /**
+   * Set multiple values in the key-value store.
+   * @param {string} topic The topic to set the values in.
+   * @param {string} key The key to set the values for.
+   * @param {Array.<Array.<string, string>>} entries The entries to set. Each entry should be a valid sql query.
+   * @returns {boolean} True if the values were set.
+   */
+  setBulk (topic = 'topic', key, entries) {
+    if (!this.#topics[topic]) this.init(topic, key)
+
+    this.#connection.tx((transaction) => {
+      for (const entry of entries) {
+        transaction.query(entry)
+      }
+    })
+
+    return true
+  }
+
+  /**
    * Get a value from the key-value store.
    * @param {string} topic The topic to get the value from.
    * @param {string} key The key to get the value for.
