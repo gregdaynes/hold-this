@@ -14,7 +14,7 @@ let diskHolder; let diskIdx = 0
 let diskWALHolder; let diskWALIdx = 0
 
 bench
-  .add('disk', () => {
+  .add('SET: disk', () => {
     diskHolder.set('disk', `key${diskIdx}`, 'value')
     diskIdx++
   }, {
@@ -26,11 +26,10 @@ bench
       }
     },
     afterAll () {
-      diskHolder = null
       unlinkSync('./bench.sqlite')
     }
   })
-  .add('diskWAL', () => {
+  .add('SET: diskWAL', () => {
     diskWALHolder.set('diskWAL', `key${diskWALIdx}`, 'value')
     diskWALIdx++
   }, {
@@ -42,11 +41,10 @@ bench
       }
     },
     afterAll () {
-      diskWALHolder = null
       unlinkSync('./bench-wal.sqlite')
     }
   })
-  .add('memory', () => {
+  .add('SET: memory', () => {
     memoryHolder.set('memory', `key${memoryIdx}`, 'value')
     memoryIdx++
   }, {
@@ -56,12 +54,9 @@ bench
       for (let i = 0; i < warmupIterations; i++) {
         memoryHolder.set('memory', `key${i}`, 'value')
       }
-    },
-    afterAll () {
-      memoryHolder = null
     }
   })
-  .add('memory:serialization:json', () => {
+  .add('SET: memory:serialization:json', () => {
     memorySerialJSONHolder.set('memorySerialJSON', `key${memorySerialJSONIdx}`, { str: 'value', num: 123, fn: () => 'xyz' }, { isJSON: true })
     memorySerialJSONIdx++
   }, {
@@ -71,12 +66,9 @@ bench
       for (let i = 0; i < warmupIterations; i++) {
         memorySerialJSONHolder.set('memorySerialJSON', `key${i}`, { str: 'value', num: 123, fn: () => 'xyz' }, { isJSON: true })
       }
-    },
-    afterAll () {
-      memorySerialJSONHolder = null
     }
   })
-  .add('memory:serialization:json:fast', () => {
+  .add('SET: memory:serialization:json:fast', () => {
     memorySerialJSONFastHolder.set('memorySerialJSONFast', `key${memorySerialJSONFastIdx}`, { value: 'value', num: 123 }, { isJSON: true })
     memorySerialJSONFastIdx++
   }, {
@@ -86,12 +78,9 @@ bench
       for (let i = 0; i < warmupIterations; i++) {
         memorySerialJSONFastHolder.set('memorySerialJSONFast', `key${i}`, { value: 'value', num: 123 }, { isJSON: true })
       }
-    },
-    afterAll () {
-      memorySerialJSONFastHolder = null
     }
   })
-  .add('memory:complex-key', () => {
+  .add('SET: memory:complex-key', () => {
     memoryComplexKeyHolder.set('memoryComplexKey', `key:${memoryComplexKeyIdx}:${memoryComplexKeyIdx}`, 'value')
     memoryComplexKeyIdx++
   }, {
@@ -101,15 +90,30 @@ bench
       for (let i = 0; i < warmupIterations; i++) {
         memoryComplexKeyHolder.set('memoryComplexKey', `key:${i}:${i}`, 'value')
       }
-    },
-    afterAll () {
-      memoryComplexKeyHolder = null
     }
+  })
+  .add('GET: disk', () => {
+    diskHolder.get('disk', 'key5')
+  })
+  .add('GET: diskWAL', () => {
+    diskWALHolder.set('diskWAL', 'key5', 'value')
+  })
+  .add('GET: memory', () => {
+    memoryHolder.get('memory', 'key5')
+  })
+  .add('GET: memory:serialization:json', () => {
+    memorySerialJSONHolder.get('memorySerialJSON', 'key5')
+  })
+  .add('GET: memory:serialization:json:fast', () => {
+    memorySerialJSONFastHolder.get('memorySerialJSONFast', 'key5')
+  })
+  .add('GET: memory:complex-key', () => {
+    memoryComplexKeyHolder.get('memoryComplexKey', 'key:5:5')
   })
 
 console.info('Running Bechnmarks')
 await bench.run()
-
 console.table(bench.table())
+
 console.info('Running Max Thoroughput Benchmark')
 console.table(benchTurbo())
