@@ -1,5 +1,17 @@
-import connect, { sql } from '@databases/sqlite-sync'
+import Database from 'better-sqlite3'
 import serialize from 'serialize-javascript'
+
+/**
+ * @typedef {Object} SetResult
+ * @property {number} changes The number of changes made.
+ * @property {number} lastInsertRowid The last inserted row id.
+ */
+
+/**
+ * @typedef {array} PreparedData
+ * @property {string} query The prepared query and value tuple
+ * @property {array} values The values to bind to the query
+ */
 
 /**
  * @class KVStore
@@ -26,7 +38,6 @@ export class KVStore {
 
   /**
    * The SQLite connection.
-   * @type {import('@databases/sqlite-sync').SQLiteDatabase}
    */
   #connection = null
 
@@ -35,28 +46,27 @@ export class KVStore {
    * @param {string} location The location of the SQLite file.
    * @param {Object} options The options for the key-value store.
    * @param {boolean} [options.enableWAL=true] Enable the Write-Ahead Logging for the SQLite store.
-   * @param {boolean} [options.exposeConnection=false] Expose the connection to the SQLite store.
+   * @param {boolean} [options.exposeConnection=false] Expose the connection to the internal connection for the SQLite store.
    * @returns {void}
    */
   constructor (location, { enableWAL = true, exposeConnection = false, turbo = false } = {}) {
-    this.#connection = connect(location)
+    this.#connection = new Database(location)
     this.#topics = {}
     this.turbo = turbo
 
     if (enableWAL && location !== ':memory:') {
-      this.#connection.query(sql`PRAGMA journal_mode = WAL`)
-      this.#connection.query(sql`PRAGMA synchronous = OFF`)
+      this.#connection.pragma('journal_mode = WAL')
+      this.#connection.pragma('synchronous = OFF')
 
       // Recommended optimizations, but not found to be beneficial in benchmarking
-      // this.#connection.query(sql`PRAGMA temp_store = memory`)
-      // this.#connection.query(sql`PRAGMA mmap_size = 30000000000`)
-      // this.#connection.query(sql`pragma page_size = 32768`)
-      // this.#connection.query(sql`PRAGMA cache_size=1000`)
+      // this.#connection.pragma('temp_store = memory')
+      // this.#connection.pragma('mmap_size = 10000')
+      this.#connection.pragma('page_size = 65536')
+      // this.#connection.pragma('cache_size = 1000')
     }
 
     if (exposeConnection) {
       this.connection = this.#connection
-      this.sql = sql
     }
   }
 
@@ -67,30 +77,27 @@ export class KVStore {
    * @returns {KVStore} The KVStore instance.
    */
   init (topic = 'topic', key = 'key') {
-    const query = this.#parseKey(key, ([i]) => sql`${sql.ident(`col${i}`)} TEXT NOT NULL`)
-    query.push(sql`serialized BOOLEAN DEFAULT FALSE`)
-    query.push(sql`value TEXT NOT NULL`)
-    query.push(sql`ttl DATETIME DEFAULT NULL`)
+    const unique = `${!this.turbo ? `, UNIQUE (${this.#parseKey(key, ([i]) => `col${i}`).join(', ')})` : ''}`
 
-    if (!this.turbo) {
-      const unique = this.#parseKey(key, ([i]) => sql`${sql.__dangerous__rawValue(`col${i}`)}`)
-      query.push(sql`UNIQUE (${sql.join(unique, ', ')})`)
-    }
+    this.#connection.transaction(() => {
+      this.#connection.exec(`
+        CREATE TABLE IF NOT EXISTS \`${topic}\` (
+          ${this.#parseKey(key, ([i]) => `col${i} TEXT NOT NULL`).join(',\n')},
+          serialized BOOLEAN DEFAULT FALSE,
+          value TEXT NOT NULL,
+          ttl DATETIME DEFAULT NULL
 
-    this.#connection.tx((transaction) => {
-      transaction.query(sql`
-        CREATE TABLE IF NOT EXISTS ${sql.ident(topic)} (
-          ${sql.join(query, ', ')}
+          ${unique}
         );
       `)
 
       if (!this.turbo) {
-        transaction.query(sql`
-          CREATE INDEX idx_${sql.__dangerous__rawValue(topic)}_ttl
-          ON ${sql.__dangerous__rawValue(topic)} (ttl);
+        this.#connection.exec(`
+          CREATE INDEX IF NOT EXISTS idx_${topic}_ttl
+          ON ${topic} (ttl);
         `)
       }
-    })
+    })()
 
     this.#topics[topic] = true
 
@@ -104,38 +111,50 @@ export class KVStore {
    * @param {string} value The value to set.
    * @param {Object} [options] The options for operation.
    * @param {number} [options.ttl] The time-to-live for the value in milliseconds.
-   * @returns {import('@databases/sqlite-sync').SQLQuery} The query to set the value.
+   * @returns {PreparedData} The query and values in a tuple.
    */
   prepare (topic, key, rawValue, options) {
-    const columns = this.#parseKey(key, ([i]) => sql`${sql.ident(`col${i}`)}`)
+    const columns = this.#parseKey(key, ([i]) => `col${i}`)
 
-    const values = this.#parseKey(key, (key) => sql`${key[1]}`)
+    const values = this.#parseKey(key, (key) => key[1])
 
-    const conditions = this.#parseKey(key,
-      ([i, column]) => sql`${sql.ident(`col${i}`)} = ${column}`)
+    if (options?.ttl >= 0) {
+      const ttl = new Date(Date.now() + options.ttl).toISOString()
+      columns.push('ttl')
+      values.push(ttl)
+    }
 
-    let value = rawValue; let serialized = 'false'
+    let value = rawValue
+    let serialized = 'false'
     if (typeof rawValue !== 'string') {
       value = serialize(value, { isJSON: options?.isJSON })
       serialized = 'true'
     }
+    values.push(value)
+    values.push(serialized)
 
-    if (options?.ttl >= 0) {
-      const ttl = new Date(Date.now() + options.ttl).toISOString()
-      columns.push(sql`ttl`)
-      values.push(sql`${ttl}`)
-    }
-
-    let query = sql`
-      INSERT INTO ${sql.ident(topic)} (${sql.join(columns, ',')}, value, serialized)
-      VALUES (${sql.join(values, ', ')}, ${value}, ${sql.__dangerous__rawValue(serialized)})
+    let query = `
+      INSERT INTO \`${topic}\` (${columns.join(', ')}, value, serialized)
+      VALUES (${Array(values.length).fill('?').join(', ')})
     `
 
     if (!this.turbo) {
-      query = sql.join([query, sql`ON CONFLICT DO UPDATE SET ${sql.ident('value')} = ${value}, ${sql.ident('serialized')} = ${serialized} WHERE (${sql.join(conditions, ') AND (')});`])
+      values.push(value)
+      values.push(serialized)
+
+      const conditions = this.#parseKey(key, ([i, column]) => {
+        values.push(column)
+
+        return `"col${i}" = ?`
+      })
+
+      query = [query, `ON CONFLICT DO UPDATE SET "value" = ?, "serialized" = ? WHERE (${conditions.join(') AND (')});`].join('\n')
     }
 
-    return query
+    return [
+      this.#connection.prepare(query),
+      values
+    ]
   }
 
   /**
@@ -145,36 +164,31 @@ export class KVStore {
    * @param {string} value The value to set.
    * @param {Object} [options] The options for operation.
    * @param {number} [options.ttl] The time-to-live for the value in milliseconds.
-   * @returns {boolean|string} True if the value was set, an error otherwise.
+   * @returns {SetResult} The result of the operation.
    */
   set (topic = 'topic', key, rawValue, options) {
     if (!this.#topics[topic]) this.init(topic, key)
 
-    const query = this.prepare(topic, key, rawValue, options)
+    const [query, values] = this.prepare(topic, key, rawValue, options)
 
-    try {
-      this.#connection.query(query)
-      return true
-    } catch (err) {
-      return err
-    }
+    return query.run(values)
   }
 
   /**
    * Set multiple values in the key-value store.
    * @param {string} topic The topic to set the values in.
    * @param {string} key The key to set the values for.
-   * @param {Array.<Array.<string, string>>} entries The entries to set. Each entry should be a valid sql query.
+   * @param {PreparedData} entries The prepared data to set. Each entry should be a tuple with querystring and values.
    * @returns {boolean} True if the values were set.
    */
   setBulk (topic = 'topic', key, entries) {
     if (!this.#topics[topic]) this.init(topic, key)
 
-    this.#connection.tx((transaction) => {
-      for (const entry of entries) {
-        transaction.query(entry)
+    this.#connection.transaction((transaction) => {
+      for (const [query, values] of entries) {
+        query.run(values)
       }
-    })
+    })()
 
     return true
   }
@@ -188,25 +202,35 @@ export class KVStore {
   get (topic = 'topic', key) {
     if (!this.#topics[topic]) return null
 
+    const values = []
+
+    const now = new Date().toISOString()
+    values.push(now)
+
     const conditions = this.#parseKey(key, ([i, column]) => {
       if (column.includes('*')) return
+      values.push(column)
 
-      return sql`${sql.ident(`col${i}`)} = ${column}`
+      return `"col${i}" = ?`
     })
 
-    let query = sql`
+    let query = `
       SELECT *
-      FROM ${sql.ident(topic)}
-      WHERE (ttl IS NULL OR ttl > ${new Date().toISOString()})
+      FROM \`${topic}\`
+      WHERE ("ttl" IS NULL OR "ttl" > ?)
     `
 
     if (key !== '*') {
-      query = sql.join([query, sql`AND (${sql.join(conditions, ') AND (')})`])
+      query = [query, `AND (${conditions.join(') AND (')})`].join(' ')
     }
 
+    const prepared = this.#connection.prepare(query)
+
     const results = []
-    for (const result of this.#connection.query(query)) {
-      const { value, serialized, ttl, ...columns } = result
+    for (const row of prepared.iterate(values)) {
+      let { value, serialized, ttl, ...columns } = row
+      serialized = serialized === 'true'
+
       // eslint-disable-next-line no-eval
       const deserialized = serialized ? eval(`(${value})`) : value
 
@@ -228,24 +252,25 @@ export class KVStore {
     }
   }
 
+  /**
+   * Clean the key-value store removing expired records from all topics or the specified.
+   * @param {string} [topic=null] The topic to clean. defaults to all
+   * @returns {void}
+   */
   clean (topic = null) {
     if (this.#topics.length === 0) return
+    const topics = topic ? [topic] : Object.keys(this.#topics)
 
-    this.#connection.tx((transaction) => {
-      if (topic) {
-        transaction.query(sql`
-          DELETE FROM ${sql.ident(topic)}
-          WHERE ttl < ${new Date().toISOString()}
+    const date = new Date().toISOString()
+
+    this.#connection.transaction(() => {
+      for (const topic of topics) {
+        this.#connection.exec(`
+          DELETE FROM \`${topic}\`
+          WHERE "ttl" < '${date}';
         `)
-      } else {
-        for (const topic of Object.keys(this.#topics)) {
-          transaction.query(sql`
-          DELETE FROM ${sql.ident(topic)}
-          WHERE ttl < ${new Date().toISOString()}
-        `)
-        }
       }
-    })
+    })()
   }
 
   #splitKey (key) {

@@ -276,8 +276,8 @@ test('Hold This', async (t) => {
       await new Promise(resolve => setTimeout(resolve, 0))
 
       holder.clean()
-      const afterCleanTTL = holder.connection.query(holder.sql`SELECT * FROM ttl`)
-      const afterCleanOther = holder.connection.query(holder.sql`SELECT * FROM other`)
+      const afterCleanTTL = holder.connection.prepare('SELECT * FROM ttl').all()
+      const afterCleanOther = holder.connection.prepare('SELECT * FROM other').all()
 
       const [result] = holder.get('ttl', 'key')
 
@@ -296,8 +296,8 @@ test('Hold This', async (t) => {
 
       holder.clean('ttl')
 
-      const afterClean = holder.connection.query(holder.sql`SELECT * FROM ttl`)
-      const afterCleanOther = holder.connection.query(holder.sql`SELECT * FROM other`)
+      const afterClean = holder.connection.prepare('SELECT * FROM ttl').all()
+      const afterCleanOther = holder.connection.prepare('SELECT * FROM other').all()
 
       const [result] = holder.get('ttl', 'key')
       assert.equal(result, undefined)
@@ -313,7 +313,7 @@ test('Hold This', async (t) => {
     const entries = Array.from(Array(10)).map((_, i) => holder.prepare('bulk', `key${i}`, `value${i}`))
     holder.setBulk('bulk', 'key', entries)
 
-    const results = holder.connection.query(holder.sql`SELECT * FROM bulk`)
+    const results = holder.connection.prepare('SELECT * FROM bulk').all()
     assert.equal(results.length, 10)
   })
 

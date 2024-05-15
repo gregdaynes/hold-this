@@ -19,16 +19,15 @@ bench
     diskIdx++
   }, {
     beforeAll () {
-      diskHolder = Hold({ location: './bench.db', enableWAL: false, exposeConnection: true })
+      diskHolder = Hold({ location: './bench.sqlite', enableWAL: false, exposeConnection: true })
 
       for (let i = 0; i < warmupIterations; i++) {
         diskHolder.set('disk', `key${i}`, 'value')
       }
     },
     afterAll () {
-      diskHolder.connection.dispose()
       diskHolder = null
-      unlinkSync('./bench.db')
+      unlinkSync('./bench.sqlite')
     }
   })
   .add('diskWAL', () => {
@@ -36,16 +35,15 @@ bench
     diskWALIdx++
   }, {
     beforeAll () {
-      diskWALHolder = Hold({ location: './bench-wal.db', exposeConnection: true })
+      diskWALHolder = Hold({ location: './bench-wal.sqlite', exposeConnection: true })
 
       for (let i = 0; i < warmupIterations; i++) {
         diskWALHolder.set('diskWAL', `key${i}`, 'value')
       }
     },
     afterAll () {
-      diskWALHolder.connection.dispose()
       diskWALHolder = null
-      unlinkSync('./bench-wal.db')
+      unlinkSync('./bench-wal.sqlite')
     }
   })
   .add('memory', () => {
@@ -60,7 +58,6 @@ bench
       }
     },
     afterAll () {
-      memoryHolder.connection.dispose()
       memoryHolder = null
     }
   })
@@ -76,7 +73,6 @@ bench
       }
     },
     afterAll () {
-      memorySerialJSONHolder.connection.dispose()
       memorySerialJSONHolder = null
     }
   })
@@ -92,7 +88,6 @@ bench
       }
     },
     afterAll () {
-      memorySerialJSONFastHolder.connection.dispose()
       memorySerialJSONFastHolder = null
     }
   })
@@ -108,7 +103,6 @@ bench
       }
     },
     afterAll () {
-      memoryComplexKeyHolder.connection.dispose()
       memoryComplexKeyHolder = null
     }
   })

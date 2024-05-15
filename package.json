@@ -32,7 +32,7 @@
     "tinybench": "^2.7.0"
   },
   "dependencies": {
-    "@databases/sqlite-sync": "^1.1.0",
+    "better-sqlite3": "^10.0.0",
     "serialize-javascript": "^6.0.2"
   },
   "eslintConfig": {
