@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import Hold from './index.js'
+import { setTimeout as sleep } from 'node:timers/promises'
 
 test('Hold This', async (t) => {
   await t.test('with a topic, set and retrieve a key and value', async (t) => {
@@ -252,7 +253,7 @@ test('Hold This', async (t) => {
         holder.set('ttl', 'key', 'value', { ttl: 5 })
 
         // artificial delay
-        await new Promise(resolve => setTimeout(resolve, 5))
+        await sleep(5)
 
         const [result] = holder.get('ttl', 'key')
         assert.equal(result, undefined)
@@ -273,7 +274,7 @@ test('Hold This', async (t) => {
       })
       holder.set('other', 'key', 'value', { ttl: 0 })
       holder.set('ttl', 'key', 'value', { ttl: 0 })
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await sleep(0)
 
       holder.clean()
       const afterCleanTTL = holder.connection.prepare('SELECT * FROM ttl').all()
@@ -292,7 +293,7 @@ test('Hold This', async (t) => {
       })
       holder.set('other', 'key', 'value', { ttl: 0 })
       holder.set('ttl', 'key', 'value', { ttl: 0 })
-      await new Promise(resolve => setTimeout(resolve, 5))
+      await sleep(5)
 
       holder.clean('ttl')
 
@@ -317,13 +318,26 @@ test('Hold This', async (t) => {
     assert.equal(results.length, 10)
   })
 
-  await t.test('turbo mode does not interfere', async (t) => {
-    const holder = Hold()
-    holder.set('turbo', 'key', 'value')
+  await t.test('turbo mode', async (t) => {
+    await t.test('turbo mode does not interfere when not enabled', async (t) => {
+      const holder = Hold()
+      holder.set('turbo', 'key', 'value')
 
-    const [result] = holder.get('turbo', 'key')
+      const [result] = holder.get('turbo', 'key')
 
-    assert.equal(result[0], 'key')
-    assert.equal(result[1], 'value')
+      assert.equal(result[0], 'key')
+      assert.equal(result[1], 'value')
+    })
+
+    await t.test('turbo mode enabled', async (t) => {
+      const holder = Hold({ turbo: true })
+      holder.set('turbo', 'key', 'value')
+
+      const [result] = holder.get('turbo', 'key')
+
+      assert.equal(result[0], 'key')
+      assert.equal(result[1], 'value')
+    })
+  })
   })
 })
