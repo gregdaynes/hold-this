@@ -107,7 +107,7 @@ bench
     }
   })
   .add('SET: memory:buffered + turbo', () => {
-    bufferedTurboHolder.setBuffered('buffer_turbo', `key${bufferIdx}`, 'value')
+    bufferedTurboHolder.setBuffered('buffer_turbo', `key${bufferedTurboIdx}`, 'value')
     bufferedTurboIdx++
   }, {
     beforeAll () {
