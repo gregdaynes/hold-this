@@ -56,22 +56,22 @@ const holder = holder({ location: './holder.sqlite', enableWAL: false })
 > [!TIP]
 > You can benchmark by running `npm run test:bench`
 
-| Task Name                           | ops/sec | Average Time (ns)  | Margin | Samples |
-|-------------------------------------|---------|--------------------|----------|-------|
-| SET: disk                           | 4,479   | 223243.780         | ±3.51% | 2241    |
-| SET: diskWAL                        | 46,920  |  21312.531         | ±1.13% | 23461   |
-| SET: memory                         | 97,835  |  10221.214         | ±2.13% | 48918   |
-| SET: memory:serialization:json      | 88,712  |  11272.352         | ±2.78% | 44357   |
-| SET: memory:serialization:json:fast | 88,407  |  11311.238         | ±3.97% | 44204   |
-| SET: memory:complex-key             | 72,309  |  13829.498         | ±4.37% | 36155   |
-| SET: buffered                       | 83,829  |  11928.928         | ±6.39% | 41915   |
-| SET: buffered + turbo               | 189,670 |   5272.298         | ±4.92% | 94836   |
-| GET: disk                           | 51,374  |  19464.797         | ±5.57% | 25688   |
-| GET: diskWAL                        | 86,877  |  11510.509         | ±5.00% | 43439   |
-| GET: memory                         | 87,775  |  11392.719         | ±7.03% | 43888   |
-| GET: memory:serialization:json      | 82,347  |  12143.596         | ±6.20% | 41174   |
-| GET: memory:serialization:json:fast | 81,565  |  12260.154         | ±6.61% | 40972   |
-| GET: memory:complex-key             | 67,595  |  14793.962         | ±6.60% | 33798   |
+| Task Name                           | ops/sec | Average Time (ns) | Margin | Samples |
+|-------------------------------------|---------|-------------------|----------|-------|
+| SET: disk                           | 4,479   | 223243.780        | ±3.51% | 2241    |
+| SET: diskWAL                        | 46,920  |  21312.531        | ±1.13% | 23461   |
+| SET: memory                         | 97,835  |  10221.214        | ±2.13% | 48918   |
+| SET: memory:serialization:json      | 88,712  |  11272.352        | ±2.78% | 44357   |
+| SET: memory:serialization:json:fast | 88,407  |  11311.238        | ±3.97% | 44204   |
+| SET: memory:complex-key             | 72,309  |  13829.498        | ±4.37% | 36155   |
+| SET: memory:buffered                | 83,829  |  11928.928        | ±6.39% | 41915   |
+| SET: memory:buffered + turbo        | 189,670 |   5272.298        | ±4.92% | 94836   |
+| GET: disk                           | 51,374  |  19464.797        | ±5.57% | 25688   |
+| GET: diskWAL                        | 86,877  |  11510.509        | ±5.00% | 43439   |
+| GET: memory                         | 87,775  |  11392.719        | ±7.03% | 43888   |
+| GET: memory:serialization:json      | 82,347  |  12143.596        | ±6.20% | 41174   |
+| GET: memory:serialization:json:fast | 81,565  |  12260.154        | ±6.61% | 40972   |
+| GET: memory:complex-key             | 67,595  |  14793.962        | ±6.60% | 33798   |
 
 _Performed on Macbook Pro M1 with 16 GB Memory_
 
