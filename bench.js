@@ -12,6 +12,8 @@ let memorySerialJSONFastHolder; let memorySerialJSONFastIdx = 0
 let memoryComplexKeyHolder; let memoryComplexKeyIdx = 0
 let diskHolder; let diskIdx = 0
 let diskWALHolder; let diskWALIdx = 0
+let bufferHolder; let bufferIdx = 0
+let bufferedTurboHolder; let bufferedTurboIdx = 0
 
 bench
   .add('SET: disk', () => {
@@ -89,6 +91,30 @@ bench
 
       for (let i = 0; i < warmupIterations; i++) {
         memoryComplexKeyHolder.set('memoryComplexKey', `key:${i}:${i}`, 'value')
+      }
+    }
+  })
+  .add('SET: buffered', () => {
+    bufferHolder.setBuffered('buffer', `key${bufferIdx}`, Buffer.from('value'))
+    bufferIdx++
+  }, {
+    beforeAll () {
+      bufferHolder = Hold({ exposeConnection: true })
+
+      for (let i = 0; i < warmupIterations; i++) {
+        bufferHolder.set('buffer', `key${i}`, 'value')
+      }
+    }
+  })
+  .add('SET: buffered + turbo', () => {
+    bufferedTurboHolder.setBuffered('buffer_turbo', `key${bufferIdx}`, 'value')
+    bufferedTurboIdx++
+  }, {
+    beforeAll () {
+      bufferedTurboHolder = Hold({ exposeConnection: true, turbo: true })
+
+      for (let i = 0; i < warmupIterations; i++) {
+        bufferedTurboHolder.set('buffer', `key${i}`, 'value')
       }
     }
   })

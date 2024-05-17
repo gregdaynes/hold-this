@@ -42,6 +42,12 @@ export class KVStore {
   #connection = null
 
   /**
+   * Buffer configuration
+   */
+  #bufferThreshold = 1000
+  #bufferTimeout = 500
+
+  /**
    * Create a new key-value store.
    * @param {string} location The location of the SQLite file.
    * @param {Object} options The options for the key-value store.
@@ -49,7 +55,7 @@ export class KVStore {
    * @param {boolean} [options.exposeConnection=false] Expose the connection to the internal connection for the SQLite store.
    * @returns {void}
    */
-  constructor (location, { enableWAL = true, exposeConnection = false, turbo = false } = {}) {
+  constructor (location, { enableWAL = true, exposeConnection = false, turbo = false, bufferThreshold, bufferTimeout } = {}) {
     this.#connection = new Database(location)
     this.#topics = {}
     this.turbo = turbo
@@ -67,6 +73,14 @@ export class KVStore {
 
     if (exposeConnection) {
       this.connection = this.#connection
+    }
+
+    if (bufferThreshold) {
+      this.#bufferThreshold = bufferThreshold
+    }
+
+    if (bufferTimeout) {
+      this.#bufferTimeout = bufferTimeout
     }
   }
 
@@ -273,6 +287,36 @@ export class KVStore {
     })()
   }
 
+  /**
+   * Use a buffer to collect records and insert them in bulk.
+   * when the buffer reaches a count threshold of records or timeout
+   * the buffer is drained through a transactional insert in bulk.
+   * @param {string} topic The topic to buffer.
+   * @param {string} key The key to buffer.
+   * @param {string} value The value to buffer.
+   * @returns {void}
+   */
+  setBuffered (topic, key, value) {
+    if (this.timeOut) clearTimeout(this.timeOut)
+    if (!this.#topics[topic]) this.init(topic, key)
+
+    this.buffer = (this.buffer || []).concat([this.prepare(topic, key, value)])
+
+    if (this.buffer.length >= this.#bufferThreshold) {
+      this.#drainBuffer(topic, key, this.buffer)
+      return
+    }
+
+    this.timeOut = setTimeout(() => {
+      this.#drainBuffer(topic, key, this.buffer)
+    }, this.#bufferTimeout)
+  }
+
+  #drainBuffer (topic, key, entries) {
+    this.setBulk(topic, key, entries)
+    this.buffer = []
+  }
+
   #splitKey (key) {
     return key.split(':')
   }
@@ -296,9 +340,11 @@ export class KVStore {
  * @param {boolean} [options.exposeConnection=false] Expose the connection to the SQLite store.
  * @param {boolean} [options.enableWAL=true] Enable the Write-Ahead Logging for the SQLite store.
  * @param {boolean} [options.turbo=false] Enable the turbo mode for the SQLite store. Turbo mode does not have indexes, constraints, or conflict checks.
+ * @param {number} [options.bufferTimeout=500] The timeout in milliseconds to wait before draining the buffer.
+ * @param {number} [options.bufferThreshold=1000] The threshold count of records to wait before draining the buffer.
  * @returns {KVStore} The key-value store.
  */
-export default function factory ({ location = ':memory:', exposeConnection = false, enableWAL = true, turbo = false } = {}
+export default function factory ({ location = ':memory:', exposeConnection = false, enableWAL = true, turbo = false, bufferTimeout, bufferThreshold } = {}
 ) {
-  return new KVStore(location, { exposeConnection, enableWAL, turbo })
+  return new KVStore(location, { exposeConnection, enableWAL, turbo, bufferTimeout, bufferThreshold })
 }

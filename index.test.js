@@ -339,5 +339,44 @@ test('Hold This', async (t) => {
       assert.equal(result[1], 'value')
     })
   })
+
+  await t.test('buffered insert', async (t) => {
+    await t.test('threshold limit', async (t) => {
+      const holder = Hold({ turbo: true, bufferThreshold: 1000 })
+      holder.init('buffer', 'key', 'value')
+
+      for (let i = 0; i < 1000; i++) {
+        holder.setBuffered('buffer', 'key', `value${i}`)
+      }
+
+      const results = holder.get('buffer', 'key')
+      assert.equal(results.length, 1000)
+    })
+
+    await t.test('below threshold limit', async (t) => {
+      const holder = Hold({ turbo: true, bufferThreshold: 250 })
+      holder.init('below_threshold', 'key', 'value')
+
+      for (let i = 0; i < 249; i++) {
+        holder.setBuffered('below_threshold', 'key', `value${i}`)
+      }
+
+      const results = holder.get('below_threshold', 'key')
+      assert.equal(results.length, 0)
+    })
+
+    await t.test('timeout trigger', async (t) => {
+      const holder = Hold({ turbo: true, bufferTimeout: 50 })
+      holder.init('timeout', 'key', 'value')
+
+      for (let i = 0; i < 50; i++) {
+        holder.setBuffered('timeout', 'key', `value${i}`)
+      }
+
+      await sleep(50)
+
+      const results = holder.get('timeout', 'key')
+      assert.equal(results.length, 50)
+    })
   })
 })

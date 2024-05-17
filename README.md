@@ -56,11 +56,22 @@ const holder = holder({ location: './holder.sqlite', enableWAL: false })
 > [!TIP]
 > You can benchmark by running `npm run test:bench`
 
-| Task Name | ops/sec  | Average Time (ns)  | Margin   | Samples |
-|-----------|----------|--------------------|----------|---------|
-| 'memory'  | '64,429' | 15520.905412115228 | '±0.68%' | 32224   |
-| 'disk'    | '3,999'  | 250002.6559999995  | '±0.73%' | 2000    |
-| 'diskWAL' | '40,473' | 24707.3802935224   | '±0.77%' | 20237   |
+| Task Name                           | ops/sec | Average Time (ns)  | Margin | Samples |
+|-------------------------------------|---------|--------------------|----------|-------|
+| SET: disk                           | 4,479   | 223243.780         | ±3.51% | 2241    |
+| SET: diskWAL                        | 46,920  |  21312.531         | ±1.13% | 23461   |
+| SET: memory                         | 97,835  |  10221.214         | ±2.13% | 48918   |
+| SET: memory:serialization:json      | 88,712  |  11272.352         | ±2.78% | 44357   |
+| SET: memory:serialization:json:fast | 88,407  |  11311.238         | ±3.97% | 44204   |
+| SET: memory:complex-key             | 72,309  |  13829.498         | ±4.37% | 36155   |
+| SET: buffered                       | 83,829  |  11928.928         | ±6.39% | 41915   |
+| SET: buffered + turbo               | 189,670 |   5272.298         | ±4.92% | 94836   |
+| GET: disk                           | 51,374  |  19464.797         | ±5.57% | 25688   |
+| GET: diskWAL                        | 86,877  |  11510.509         | ±5.00% | 43439   |
+| GET: memory                         | 87,775  |  11392.719         | ±7.03% | 43888   |
+| GET: memory:serialization:json      | 82,347  |  12143.596         | ±6.20% | 41174   |
+| GET: memory:serialization:json:fast | 81,565  |  12260.154         | ±6.61% | 40972   |
+| GET: memory:complex-key             | 67,595  |  14793.962         | ±6.60% | 33798   |
 
 _Performed on Macbook Pro M1 with 16 GB Memory_
 
@@ -175,3 +186,33 @@ console.log(holder.get('bulk', 'key:*'))
 
 _Using Turbo Mode_
 _Performed on Macbook Pro M1 with 16 GB Memory_
+
+### Buffered Insertion
+
+Like bulk insertion, buffered insertion uses transactions, but handles _everything_ for you.
+
+Everything is:
+- preparation of the insert statement. Like `set`
+- draining at threshold
+- draining after time threshold
+
+> [!CAUTION]
+> When using transactions, if one insert fails, the batch is discarded.
+
+> [!INFO]
+> Records in the buffer are not queryable.
+
+```js
+import hold from 'hold-this'
+
+const holder = hold({ turbo: true, bufferThreshold: 1000, bufferTimeout: 500 })
+
+for (let i = 0; i < 1000; i++) {
+	holder.setBuffered('buffer', 'key', `value${i}`)
+}
+
+// If 1000 records are not set in the buffer within the timeout of 500 ms, the buffer is drained.
+
+console.log(holder.get('buffer', 'key:*'))
+// => [['key:0', 'value0'], ['key:1', 'value1'], ...]
+```
