@@ -4,14 +4,44 @@ Hold This
 A simple key-value store that uses SQLite as the backend.
 It is designed to be used in a single-threaded synchronous environment.
 
+[Getting Started](#getting-started)
+[Examples](#examples)
+- [No Config](#no-config-setup)
+- [File Backed](#file-backed-store)
+- [WebSocket Server](#websocket-server)
+- [Data Serialization](#data-serialization)
+- [TTL / Expiring Records](#ttl-%2F-expiring-records)
+- [Turbo Mode](#turbo-mode)
+- [Bulk Insertion](#bulk-insertion)
+- [Buffered Insertion](#buffered-insertion)
+
+
 Getting Started
 ---------------
 
-```js
-npm install --save hold-this
-```
+1. Add dependency to project
 
-### Use in-memory store
+		npm install --save hold-this
+
+2. Create instance of hold-this
+
+		import Hold from 'hold-this'
+
+		const holder = Hold()
+
+3. Write data to store
+
+		holder.set('accounts', 'account-123:user-123:name', 'Alice')
+
+4. Read data from store
+
+		holder.get('accounts', 'account-123:*:name')
+
+
+Examples
+--------
+
+### No Config Setup
 
 ```js
 import hold from 'hold-this'
@@ -24,10 +54,7 @@ console.log(holder.get('accounts', 'account-123:*:name'))
 // => [['account-123:user-123:name', 'Alice'], ['account-123:user-456:name', 'Bob']]
 ```
 
-Other Examples
---------------
-
-### File based store
+### File backed store
 
 Pass an object with a key `location` and a path to a file. This will be the filepath that hold-this utilizes to write to disk.
 
@@ -75,6 +102,46 @@ const holder = holder({ location: './holder.sqlite', enableWAL: false })
 
 _Performed on Macbook Pro M1 with 16 GB Memory_
 
+
+### WebSocket Server
+
+Because Hold This is based on SQLite3, it does not support a native network connection.
+However we can achieve a networked, multi-connection instance by wrapping Hold This in a WebSocket Server.
+
+>[!CAUTION]
+>This is not a production ready example. Security, and failure modes must be considered, but are outside the scope of the example.
+
+```js
+/* global WebSocket */
+import { WebSocketServer } from 'ws'
+import Hold from 'hold-this'
+
+const server = new WebSocketServer(3000)
+server.holder = Hold()
+
+server.on('connection', function connection (ws) {
+	ws.on('error', console.error)
+
+	ws.on('message', function message (payload) {
+		const message = JSON.parse(payload)
+
+		const { id, cmd } = message
+		const { topic, key, value, options } = message.data
+
+		const data = server.holder[cmd](topic, key, value, options)
+
+		ws.send(JSON.stringify({ id, cmd, data }))
+	})
+
+	ws.send('connected')
+})
+
+export default server
+```
+
+_The complete example including client and benchmarks can be found in [example/](example/)_
+
+
 ### Bind Topic / Shorthand
 
 Calling `.bind('myTopic')` on your hold-this instance, will return a modified instance that has topic already defined on set/get methods.
@@ -90,7 +157,8 @@ console.log(holder.get('account-123:*:name'))
 // => [['account-123:user-123:name', 'Alice'], ['account-123:user-456:name', 'Bob']]
 ```
 
-### Serialization
+
+### Data Serialization
 
 When passing the value with `.set`, if the value is not a string, the data will be serialized with `serialize-javascript` and then stored.
 Passing an options object like `{ isJSON: true }`, with a proper JSON object, will signal to the serializer to use a faster mechanism.
@@ -106,7 +174,8 @@ console.log(holder.get('account-123:*:name'))
 // => [['account-123:user-123:name', { firstName: 'Alice' }], ['account-123:user-456:name', 'Bob']]
 ```
 
-### TTTL / Expiring Records
+
+### TTL / Expiring Records
 
 When setting a record, specifying in a options object `{ ttl: 1000 }` will set a date in the future where the record will no longer be retrievable.
 Note: TTL value is set in milliseconds.
@@ -135,6 +204,7 @@ holder.set('accounts', 'account-123:user-123:name', 'Alice', { ttl: 1000 })
 holder.clean()
 ```
 
+
 ### Turbo Mode
 
 If speed of insertion is a priority, turbo mode can be enabled.
@@ -156,6 +226,7 @@ holder.set('accounts', 'account-123:user-123:name', 'Alice')
 console.log(holder.get('accounts', 'account-123:*:name'))
 // => [['account-123:user-123:name', 'Alice']]
 ```
+
 
 ### Bulk Insertion
 
@@ -186,6 +257,7 @@ console.log(holder.get('bulk', 'key:*'))
 
 _Using Turbo Mode_
 _Performed on Macbook Pro M1 with 16 GB Memory_
+
 
 ### Buffered Insertion
 
