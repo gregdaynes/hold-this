@@ -8,6 +8,7 @@ It is designed to be used in a single-threaded synchronous environment.
 [Examples](#examples)
 - [No Config](#no-config-setup)
 - [File Backed](#file-backed-store)
+- [HTTP Server](#http-server)
 - [WebSocket Server](#websocket-server)
 - [Data Serialization](#data-serialization)
 - [TTL / Expiring Records](#ttl-%2F-expiring-records)
@@ -101,6 +102,42 @@ const holder = holder({ location: './holder.sqlite', enableWAL: false })
 | GET: memory:complex-key             | 67,595  |  14793.962        | ±6.60% | 33798   |
 
 _Performed on Macbook Pro M1 with 16 GB Memory_
+
+
+### HTTP Server
+
+Because Hold This is based on SQLite3, it does not support a native network connection.
+We can achieve a networked, multi-connection instance by wrapping Hold This in a HTTP Server.
+
+>[!CAUTION]
+>This is not a production ready example. Security, and failure modes must be considered, but are outside the scope of the example.
+
+```js
+import { createServer } from 'node:http'
+import Hold from 'hold-this'
+
+const server = createServer()
+server.holder = Hold()
+
+server.on('request', (req, res) => {
+	let body = ''
+	req.on('data', (chunk) => { body += chunk })
+
+	req.on('end', () => {
+		const parsedBody = JSON.parse(body)
+
+		const { cmd, topic, key, value, options } = parsedBody
+		const data = server.holder[cmd](topic, key, value, options)
+
+		res.writeHead(200, { 'Content-Type': 'application/json' })
+		res.end(JSON.stringify(data))
+	})
+})
+
+server.listen(3000)
+```
+
+_The complete example including client and benchmarks can be found in [examples/http](examples/http)_
 
 
 ### WebSocket Server

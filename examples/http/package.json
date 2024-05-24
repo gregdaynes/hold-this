@@ -1,0 +1,18 @@
+{
+  "name": "http",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "test:bench": "node ./bench.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "autocannon": "^7.15.0",
+    "hold-this": "file:../../"
+  }
+}
