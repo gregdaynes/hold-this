@@ -6,13 +6,13 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "bench": "node bench.js"
+    "test:bench": "node bench.js"
   },
   "keywords": [],
   "author": "Gregory Daynes <email@gregdaynes.com>",
   "license": "ISC",
   "dependencies": {
-    "hold-this": "file:../",
+    "hold-this": "file:../../",
     "ws": "^8.17.0"
   }
 }

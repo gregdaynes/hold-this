@@ -24,3 +24,7 @@ Getting Started
 2. Run Example
 
 		npm start
+
+3. Run Benchmark
+
+		npm run test:bench

@@ -139,7 +139,7 @@ server.on('connection', function connection (ws) {
 export default server
 ```
 
-_The complete example including client and benchmarks can be found in [example/](example/)_
+_The complete example including client and benchmarks can be found in [examples/websocket](examples/websocket)_
 
 
 ### Bind Topic / Shorthand
