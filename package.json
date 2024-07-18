@@ -8,9 +8,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "start": "node index.js",
-    "test": "node --test",
-    "test:bench": "node ./bench.js",
-    "test:coverage": "node --test --experimental-test-coverage"
+    "test": "node --test --experimental-sqlite",
+    "test:bench": "node --experimental-sqlite ./bench.js",
+    "test:coverage": "node --test --experimental-test-coverage --experimental-sqlite"
   },
   "keywords": [
     "key-value",
@@ -32,7 +32,6 @@
     "tinybench": "^2.8.0"
   },
   "dependencies": {
-    "better-sqlite3": "^10.0.0",
     "serialize-javascript": "^6.0.2"
   },
   "eslintConfig": {

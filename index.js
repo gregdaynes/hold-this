@@ -1,5 +1,5 @@
-import Database from 'better-sqlite3'
 import serialize from 'serialize-javascript'
+import { DatabaseSync } from 'node:sqlite'
 
 /**
  * @typedef {Object} SetResult
@@ -56,19 +56,23 @@ export class KVStore {
    * @returns {void}
    */
   constructor (location, { enableWAL = true, exposeConnection = false, turbo = false, bufferThreshold, bufferTimeout } = {}) {
-    this.#connection = new Database(location)
+    this.#connection = new DatabaseSync(location)
     this.#topics = {}
     this.turbo = turbo
 
     if (enableWAL && location !== ':memory:') {
-      this.#connection.pragma('journal_mode = WAL')
-      this.#connection.pragma('synchronous = OFF')
+      // this.#connection.pragma('journal_mode = WAL')
+      // this.#connection.pragma('synchronous = OFF')
 
       // Recommended optimizations, but not found to be beneficial in benchmarking
       // this.#connection.pragma('temp_store = memory')
       // this.#connection.pragma('mmap_size = 10000')
-      this.#connection.pragma('page_size = 65536')
+      // this.#connection.pragma('page_size = 65536')
       // this.#connection.pragma('cache_size = 1000')
+
+      this.#connection.exec('PRAGMA journal_mode = WAL')
+      this.#connection.exec('PRAGMA synchronous = OFF')
+      this.#connection.exec('PRAGMA page_size = 65536')
     }
 
     if (exposeConnection) {
@@ -93,25 +97,23 @@ export class KVStore {
   init (topic = 'topic', key = 'key') {
     const unique = `${!this.turbo ? `, UNIQUE (${this.#parseKey(key, ([i]) => `col${i}`).join(', ')})` : ''}`
 
-    this.#connection.transaction(() => {
+    this.#connection.exec(`
+      CREATE TABLE IF NOT EXISTS \`${topic}\` (
+        ${this.#parseKey(key, ([i]) => `col${i} TEXT NOT NULL`).join(',\n')},
+        serialized BOOLEAN DEFAULT FALSE,
+        value TEXT NOT NULL,
+        ttl DATETIME DEFAULT NULL
+
+        ${unique}
+      );
+    `)
+
+    if (!this.turbo) {
       this.#connection.exec(`
-        CREATE TABLE IF NOT EXISTS \`${topic}\` (
-          ${this.#parseKey(key, ([i]) => `col${i} TEXT NOT NULL`).join(',\n')},
-          serialized BOOLEAN DEFAULT FALSE,
-          value TEXT NOT NULL,
-          ttl DATETIME DEFAULT NULL
-
-          ${unique}
-        );
+        CREATE INDEX IF NOT EXISTS idx_${topic}_ttl
+        ON ${topic} (ttl);
       `)
-
-      if (!this.turbo) {
-        this.#connection.exec(`
-          CREATE INDEX IF NOT EXISTS idx_${topic}_ttl
-          ON ${topic} (ttl);
-        `)
-      }
-    })()
+    }
 
     this.#topics[topic] = true
 
@@ -185,7 +187,7 @@ export class KVStore {
 
     const [query, values] = this.prepare(topic, key, rawValue, options)
 
-    return query.run(values)
+    return query.run(...values)
   }
 
   /**
@@ -198,11 +200,9 @@ export class KVStore {
   setBulk (topic = 'topic', key, entries) {
     if (!this.#topics[topic]) this.init(topic, key)
 
-    this.#connection.transaction((transaction) => {
-      for (const [query, values] of entries) {
-        query.run(values)
-      }
-    })()
+    for (const [query, values] of entries) {
+      query.run(...values)
+    }
 
     return true
   }
@@ -240,8 +240,10 @@ export class KVStore {
 
     const prepared = this.#connection.prepare(query)
 
+    // console.log(prepared.sourceSQL())
+
     const results = []
-    for (const row of prepared.iterate(values)) {
+    for (const row of prepared.all(...values)) {
       let { value, serialized, ttl, ...columns } = row
       serialized = serialized === 'true'
 
@@ -277,14 +279,12 @@ export class KVStore {
 
     const date = new Date().toISOString()
 
-    this.#connection.transaction(() => {
-      for (const topic of topics) {
-        this.#connection.exec(`
-          DELETE FROM \`${topic}\`
-          WHERE "ttl" < '${date}';
-        `)
-      }
-    })()
+    for (const topic of topics) {
+      this.#connection.exec(`
+        DELETE FROM \`${topic}\`
+        WHERE "ttl" < '${date}';
+      `)
+    }
   }
 
   /**
